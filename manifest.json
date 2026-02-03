@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "version": "0.2.2.0",
+        "changelog": "Fixed DI service registration - CacheService now properly resolved with IApplicationPaths and ILogger dependencies.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/j4ckgrey/Palco/releases/download/v0.2.2.0/palco_0.2.2.0.zip",
+        "checksum": "b45be7b762b713d0fb72cf398221ce3d",
+        "timestamp": "2026-02-03T14:30:00Z"
+      },
+      {
         "version": "0.2.1.0",
         "changelog": "Improved error handling throughout all endpoints. All endpoints now have try-catch with proper logging and graceful fallbacks instead of 500 errors.",
         "targetAbi": "10.10.0.0",

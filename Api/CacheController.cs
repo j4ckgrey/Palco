@@ -16,7 +16,6 @@ namespace Palco.Api;
 [Authorize]
 public class CacheController : ControllerBase
 {
-    private readonly CacheService _cache;
     private readonly ILogger<CacheController> _logger;
     
     // Keys that can be accessed without authentication (for registration)
@@ -27,10 +26,14 @@ public class CacheController : ControllerBase
     
     // Namespaces/prefixes that allow anonymous write for registration requests
     private const string RegistrationNamespace = "anfiteatro-registration";
+    
+    /// <summary>
+    /// Gets the CacheService from the Plugin singleton.
+    /// </summary>
+    private CacheService Cache => Plugin.Instance?.CacheService ?? throw new InvalidOperationException("Palco plugin not initialized");
 
-    public CacheController(CacheService cache, ILogger<CacheController> logger)
+    public CacheController(ILogger<CacheController> logger)
     {
-        _cache = cache;
         _logger = logger;
     }
 
@@ -48,7 +51,7 @@ public class CacheController : ControllerBase
     {
         try
         {
-            var value = _cache.Get("registration-enabled", RegistrationNamespace);
+            var value = Cache.Get("registration-enabled", RegistrationNamespace);
             
             // Default to enabled if no value set
             if (string.IsNullOrEmpty(value))
@@ -96,10 +99,10 @@ public class CacheController : ControllerBase
             }
             
             // Store the registration request
-            _cache.Set(request.Id, request.Data, request.TtlSeconds, RegistrationNamespace);
+            Cache.Set(request.Id, request.Data, request.TtlSeconds, RegistrationNamespace);
             
             // Update the requests index
-            var indexJson = _cache.Get("requests-index", RegistrationNamespace);
+            var indexJson = Cache.Get("requests-index", RegistrationNamespace);
             var index = new List<string>();
             
             if (!string.IsNullOrEmpty(indexJson))
@@ -119,7 +122,7 @@ public class CacheController : ControllerBase
             if (!index.Contains(requestId))
             {
                 index.Add(requestId);
-                _cache.Set("requests-index", JsonSerializer.Serialize(index), request.TtlSeconds, RegistrationNamespace);
+                Cache.Set("requests-index", JsonSerializer.Serialize(index), request.TtlSeconds, RegistrationNamespace);
             }
             
             return Ok(new { success = true, requestId });
@@ -146,7 +149,7 @@ public class CacheController : ControllerBase
     {
         try
         {
-            var value = _cache.Get(key, ns);
+            var value = Cache.Get(key, ns);
             if (value == null)
             {
                 return NotFound();
@@ -174,7 +177,7 @@ public class CacheController : ControllerBase
     {
         try
         {
-            _cache.Set(key, request.Value, request.TtlSeconds, ns);
+            Cache.Set(key, request.Value, request.TtlSeconds, ns);
             return Ok(new { success = true });
         }
         catch (Exception ex)
@@ -193,7 +196,7 @@ public class CacheController : ControllerBase
     {
         try
         {
-            var deleted = _cache.Delete(key, ns);
+            var deleted = Cache.Delete(key, ns);
             return Ok(new { success = true, deleted });
         }
         catch (Exception ex)
@@ -215,7 +218,7 @@ public class CacheController : ControllerBase
     {
         try
         {
-            var results = _cache.GetBulk(request.Keys, ns);
+            var results = Cache.GetBulk(request.Keys, ns);
             return Ok(results);
         }
         catch (Exception ex)
@@ -234,7 +237,7 @@ public class CacheController : ControllerBase
     {
         try
         {
-            var deleted = _cache.DeleteNamespace(ns);
+            var deleted = Cache.DeleteNamespace(ns);
             return Ok(new { success = true, deleted });
         }
         catch (Exception ex)
@@ -253,7 +256,7 @@ public class CacheController : ControllerBase
     {
         try
         {
-            var deleted = _cache.CleanExpired();
+            var deleted = Cache.CleanExpired();
             return Ok(new { success = true, deleted });
         }
         catch (Exception ex)
@@ -272,7 +275,7 @@ public class CacheController : ControllerBase
     {
         try
         {
-            var (total, expired, size) = _cache.GetStats();
+            var (total, expired, size) = Cache.GetStats();
             return Ok(new CacheStats
             {
                 TotalEntries = total,

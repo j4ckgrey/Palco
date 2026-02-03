@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "version": "0.2.3.0",
+        "changelog": "Fixed DI service resolution issue. CacheService now accessed via Plugin singleton instead of relying on IPluginServiceRegistrator. Added lazy initialization for better resilience.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/j4ckgrey/Palco/releases/download/v0.2.3.0/palco_0.2.3.0.zip",
+        "checksum": "f8905bf80c45ac8de5299949717fddbc",
+        "timestamp": "2026-02-03T14:10:00Z"
+      },
+      {
         "version": "0.2.2.0",
         "changelog": "Fixed DI service registration - CacheService now properly resolved with IApplicationPaths and ILogger dependencies.",
         "targetAbi": "10.10.0.0",

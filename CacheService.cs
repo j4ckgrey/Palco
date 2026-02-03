@@ -13,47 +13,81 @@ public class CacheService : IDisposable
     private readonly ILogger<CacheService> _logger;
     private SqliteConnection? _connection;
     private readonly object _lock = new();
+    private bool _initialized;
+    private bool _initializationFailed;
 
     public CacheService(IApplicationPaths appPaths, ILogger<CacheService> logger)
     {
         _logger = logger;
-        var pluginDataPath = Path.Combine(appPaths.PluginsPath, "Palco");
-        Directory.CreateDirectory(pluginDataPath);
-        _dbPath = Path.Combine(pluginDataPath, "cache.db");
-        InitializeDatabase();
+        try
+        {
+            var pluginDataPath = Path.Combine(appPaths.PluginsPath, "Palco");
+            Directory.CreateDirectory(pluginDataPath);
+            _dbPath = Path.Combine(pluginDataPath, "cache.db");
+            _logger.LogInformation("[Palco] CacheService created with db path: {Path}", _dbPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Palco] Failed to setup Palco data directory");
+            _dbPath = string.Empty;
+            _initializationFailed = true;
+        }
     }
 
-    private void InitializeDatabase()
+    /// <summary>
+    /// Ensure the database is initialized. Uses lazy initialization for resilience.
+    /// </summary>
+    private bool EnsureInitialized()
     {
+        if (_initializationFailed) return false;
+        if (_initialized && _connection != null) return true;
+        
         lock (_lock)
         {
+            if (_initialized && _connection != null) return true;
+            if (_initializationFailed) return false;
+            
             try
             {
-                _connection = new SqliteConnection($"Data Source={_dbPath}");
-                _connection.Open();
-
-                using var cmd = _connection.CreateCommand();
-                cmd.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS cache (
-                        key TEXT PRIMARY KEY,
-                        value TEXT NOT NULL,
-                        created_at INTEGER NOT NULL,
-                        expires_at INTEGER,
-                        namespace TEXT DEFAULT ''
-                    );
-                    CREATE INDEX IF NOT EXISTS idx_namespace ON cache(namespace);
-                    CREATE INDEX IF NOT EXISTS idx_expires ON cache(expires_at);
-                ";
-                cmd.ExecuteNonQuery();
-
-                _logger.LogInformation("[Palco] Cache database initialized at {Path}", _dbPath);
+                InitializeDatabaseInternal();
+                _initialized = true;
+                return _connection != null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Palco] Failed to initialize cache database at {Path}", _dbPath);
-                _connection = null;
+                _logger.LogError(ex, "[Palco] Failed to initialize database");
+                _initializationFailed = true;
+                return false;
             }
         }
+    }
+
+    private void InitializeDatabaseInternal()
+    {
+        if (string.IsNullOrEmpty(_dbPath))
+        {
+            _logger.LogWarning("[Palco] Database path is empty, skipping initialization");
+            return;
+        }
+        
+        _connection = new SqliteConnection($"Data Source={_dbPath}");
+        _connection.Open();
+
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = @"
+            CREATE TABLE IF NOT EXISTS cache (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER,
+                namespace TEXT DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_namespace ON cache(namespace);
+            CREATE INDEX IF NOT EXISTS idx_expires ON cache(expires_at);
+        ";
+        cmd.ExecuteNonQuery();
+
+        _logger.LogInformation("[Palco] Cache database initialized at {Path}", _dbPath);
     }
 
     /// <summary>
@@ -61,6 +95,8 @@ public class CacheService : IDisposable
     /// </summary>
     public string? Get(string key, string ns = "")
     {
+        if (!EnsureInitialized()) return null;
+        
         lock (_lock)
         {
             if (_connection == null) return null;
@@ -103,6 +139,8 @@ public class CacheService : IDisposable
     /// <param name="ns">Optional namespace for grouping</param>
     public void Set(string key, string value, int ttlSeconds = 0, string ns = "")
     {
+        if (!EnsureInitialized()) return;
+        
         lock (_lock)
         {
             if (_connection == null) return;
@@ -129,6 +167,8 @@ public class CacheService : IDisposable
     /// </summary>
     public bool Delete(string key, string ns = "")
     {
+        if (!EnsureInitialized()) return false;
+        
         lock (_lock)
         {
             if (_connection == null) return false;
@@ -147,6 +187,8 @@ public class CacheService : IDisposable
     public Dictionary<string, string> GetBulk(IEnumerable<string> keys, string ns = "")
     {
         var result = new Dictionary<string, string>();
+        if (!EnsureInitialized()) return result;
+        
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         lock (_lock)
@@ -171,6 +213,8 @@ public class CacheService : IDisposable
     /// </summary>
     public int DeleteNamespace(string ns)
     {
+        if (!EnsureInitialized()) return 0;
+        
         lock (_lock)
         {
             if (_connection == null) return 0;
@@ -187,6 +231,8 @@ public class CacheService : IDisposable
     /// </summary>
     public int CleanExpired()
     {
+        if (!EnsureInitialized()) return 0;
+        
         lock (_lock)
         {
             if (_connection == null) return 0;
@@ -211,6 +257,8 @@ public class CacheService : IDisposable
     /// </summary>
     public (int totalEntries, int expiredEntries, long dbSizeBytes) GetStats()
     {
+        if (!EnsureInitialized()) return (0, 0, 0);
+        
         lock (_lock)
         {
             if (_connection == null) return (0, 0, 0);

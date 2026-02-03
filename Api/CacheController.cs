@@ -18,12 +18,96 @@ public class CacheController : ControllerBase
 {
     private readonly CacheService _cache;
     private readonly ILogger<CacheController> _logger;
+    
+    // Keys that can be accessed without authentication (for registration)
+    private static readonly HashSet<string> PublicReadableKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "registration-enabled"
+    };
+    
+    // Namespaces/prefixes that allow anonymous write for registration requests
+    private const string RegistrationNamespace = "anfiteatro-registration";
 
     public CacheController(CacheService cache, ILogger<CacheController> logger)
     {
         _cache = cache;
         _logger = logger;
     }
+
+    // ====================================================================
+    // PUBLIC REGISTRATION ENDPOINTS (No Auth Required)
+    // ====================================================================
+    
+    /// <summary>
+    /// Check if registration is enabled (public endpoint).
+    /// </summary>
+    [HttpGet("Registration/Enabled")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<object> GetRegistrationEnabled()
+    {
+        var value = _cache.Get("registration-enabled", RegistrationNamespace);
+        
+        // Default to enabled if no value set
+        if (string.IsNullOrEmpty(value))
+        {
+            return Ok(new { enabled = true });
+        }
+        
+        // Try to parse as JSON boolean or check for string "true"/"false"
+        try
+        {
+            var enabled = JsonSerializer.Deserialize<bool>(value);
+            return Ok(new { enabled });
+        }
+        catch
+        {
+            // Fallback: check string value
+            var enabled = value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                          value.Equals("\"true\"", StringComparison.OrdinalIgnoreCase);
+            return Ok(new { enabled });
+        }
+    }
+    
+    /// <summary>
+    /// Submit a registration request (public endpoint).
+    /// Only allows writing to 'request-*' keys in the registration namespace.
+    /// </summary>
+    [HttpPost("Registration/Request")]
+    [AllowAnonymous]
+    [Consumes(MediaTypeNames.Application.Json)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult SubmitRegistrationRequest([FromBody] RegistrationRequestPayload request)
+    {
+        if (string.IsNullOrEmpty(request.Id) || !request.Id.StartsWith("request-"))
+        {
+            return BadRequest(new { error = "Invalid request ID format" });
+        }
+        
+        // Store the registration request
+        _cache.Set(request.Id, request.Data, request.TtlSeconds, RegistrationNamespace);
+        
+        // Update the requests index
+        var indexJson = _cache.Get("requests-index", RegistrationNamespace);
+        var index = string.IsNullOrEmpty(indexJson) 
+            ? new List<string>() 
+            : JsonSerializer.Deserialize<List<string>>(indexJson) ?? new List<string>();
+        
+        // Extract the ID without prefix for the index
+        var requestId = request.Id.Replace("request-", "");
+        if (!index.Contains(requestId))
+        {
+            index.Add(requestId);
+            _cache.Set("requests-index", JsonSerializer.Serialize(index), request.TtlSeconds, RegistrationNamespace);
+        }
+        
+        return Ok(new { success = true, requestId });
+    }
+
+    // ====================================================================
+    // AUTHENTICATED ENDPOINTS
+    // ====================================================================
 
     /// <summary>
     /// Get a cached value by key.
@@ -159,6 +243,26 @@ public class CacheStats
     public int ExpiredEntries { get; set; }
     public long DatabaseSizeBytes { get; set; }
     public double DatabaseSizeMB { get; set; }
+}
+
+public class RegistrationRequestPayload
+{
+    /// <summary>
+    /// Request ID (must start with 'request-').
+    /// </summary>
+    [Required]
+    public required string Id { get; set; }
+    
+    /// <summary>
+    /// JSON data for the registration request.
+    /// </summary>
+    [Required]
+    public required string Data { get; set; }
+    
+    /// <summary>
+    /// Time to live in seconds.
+    /// </summary>
+    public int TtlSeconds { get; set; } = 2592000; // 30 days default
 }
 
 #endregion

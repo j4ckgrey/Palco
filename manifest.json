@@ -13,8 +13,8 @@
         "changelog": "Add public registration endpoints for Anfiteatro user registration system. Allows unauthenticated access to registration-enabled check and registration request submission.",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/j4ckgrey/Palco/releases/download/v0.2.0.0/palco_0.2.0.0.zip",
-        "checksum": "b34e26cdd11c9a634087e670fd42ce77",
-        "timestamp": "2026-02-03T13:21:00Z"
+        "checksum": "1396de108d6d3521ce484b67458727f9",
+        "timestamp": "2026-02-03T13:35:00Z"
       },
       {
         "version": "0.1.0.0",

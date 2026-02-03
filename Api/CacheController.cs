@@ -48,7 +48,7 @@ public class CacheController : ControllerBase
     [HttpPost("Registration/Request")]
     [AllowAnonymous]
     [Consumes(MediaTypeNames.Application.Json)]
-    public ActionResult SubmitRegistrationRequest([FromBody] RegistrationRequest request)
+    public async Task<ActionResult> SubmitRegistrationRequest([FromBody] RegistrationRequest request)
     {
         if (Cache == null) return StatusCode(503, new { error = "Cache unavailable" });
         if (string.IsNullOrEmpty(request.Id) || !request.Id.StartsWith("request-"))
@@ -70,6 +70,44 @@ public class CacheController : ControllerBase
             index.Add(requestId);
             Cache.Set("requests-index", JsonSerializer.Serialize(index), 0, RegistrationNs);
             _logger.LogInformation("[Palco] Request added to index: {Id}", requestId);
+        }
+
+        // Try to send admin notification email
+        try
+        {
+            var smtpJson = Cache.Get("smtp-config", RegistrationNs);
+            if (!string.IsNullOrEmpty(smtpJson))
+            {
+                var smtp = JsonSerializer.Deserialize<SmtpConfig>(smtpJson);
+                if (smtp != null && !string.IsNullOrEmpty(smtp.Host) && !string.IsNullOrEmpty(smtp.AdminEmail))
+                {
+                    // Parse user info from request data
+                    var userData = JsonSerializer.Deserialize<JsonElement>(request.Data);
+                    var userName = userData.TryGetProperty("name", out var n) ? n.GetString() : "Unknown";
+                    var userEmail = userData.TryGetProperty("email", out var e) ? e.GetString() : "Unknown";
+
+                    using var client = new SmtpClient(smtp.Host, smtp.Port)
+                    {
+                        EnableSsl = true,
+                        Credentials = new NetworkCredential(smtp.Username, smtp.Password)
+                    };
+
+                    var mail = new MailMessage
+                    {
+                        From = new MailAddress(smtp.FromAddress ?? smtp.Username, smtp.FromName ?? "Anfiteatro"),
+                        Subject = $"New Registration Request: {userName}",
+                        Body = $"A new user has requested access to your server.\n\nUsername: {userName}\nEmail: {userEmail}\n\nPlease review this request in the Anfiteatro admin panel."
+                    };
+                    mail.To.Add(smtp.AdminEmail);
+
+                    await client.SendMailAsync(mail);
+                    _logger.LogInformation("[Palco] Admin notification sent for registration: {Id}", requestId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Palco] Failed to send admin notification email");
         }
 
         return Ok(new { success = true, requestId });
@@ -220,6 +258,17 @@ public class EmailRequest
     [Required] public required string SmtpPassword { get; set; }
     [Required] public required string FromAddress { get; set; }
     public string FromName { get; set; } = "Anfiteatro";
+}
+
+public class SmtpConfig
+{
+    public string? Host { get; set; }
+    public int Port { get; set; } = 587;
+    public string? Username { get; set; }
+    public string? Password { get; set; }
+    public string? FromAddress { get; set; }
+    public string? FromName { get; set; }
+    public string? AdminEmail { get; set; }
 }
 
 #endregion

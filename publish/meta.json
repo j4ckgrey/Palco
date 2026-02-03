@@ -1,0 +1,15 @@
+{
+  "guid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Palco",
+  "description": "Minimal cache for Anfiteatro",
+  "overview": "Simple key-value cache with email sending support.",
+  "owner": "j4ckgrey",
+  "category": "General",
+  "version": "0.1.0.0",
+  "targetAbi": "10.11.0.0",
+  "status": "Active",
+  "autoUpdate": false,
+  "assemblies": [
+    "Palco.dll"
+  ]
+}

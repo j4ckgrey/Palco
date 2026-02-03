@@ -27,24 +27,32 @@ public class CacheService : IDisposable
     {
         lock (_lock)
         {
-            _connection = new SqliteConnection($"Data Source={_dbPath}");
-            _connection.Open();
+            try
+            {
+                _connection = new SqliteConnection($"Data Source={_dbPath}");
+                _connection.Open();
 
-            using var cmd = _connection.CreateCommand();
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS cache (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL,
-                    created_at INTEGER NOT NULL,
-                    expires_at INTEGER,
-                    namespace TEXT DEFAULT ''
-                );
-                CREATE INDEX IF NOT EXISTS idx_namespace ON cache(namespace);
-                CREATE INDEX IF NOT EXISTS idx_expires ON cache(expires_at);
-            ";
-            cmd.ExecuteNonQuery();
+                using var cmd = _connection.CreateCommand();
+                cmd.CommandText = @"
+                    CREATE TABLE IF NOT EXISTS cache (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        expires_at INTEGER,
+                        namespace TEXT DEFAULT ''
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_namespace ON cache(namespace);
+                    CREATE INDEX IF NOT EXISTS idx_expires ON cache(expires_at);
+                ";
+                cmd.ExecuteNonQuery();
 
-            _logger.LogInformation("[Palco] Cache database initialized at {Path}", _dbPath);
+                _logger.LogInformation("[Palco] Cache database initialized at {Path}", _dbPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Palco] Failed to initialize cache database at {Path}", _dbPath);
+                _connection = null;
+            }
         }
     }
 

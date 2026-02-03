@@ -46,26 +46,34 @@ public class CacheController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult<object> GetRegistrationEnabled()
     {
-        var value = _cache.Get("registration-enabled", RegistrationNamespace);
-        
-        // Default to enabled if no value set
-        if (string.IsNullOrEmpty(value))
-        {
-            return Ok(new { enabled = true });
-        }
-        
-        // Try to parse as JSON boolean or check for string "true"/"false"
         try
         {
-            var enabled = JsonSerializer.Deserialize<bool>(value);
-            return Ok(new { enabled });
+            var value = _cache.Get("registration-enabled", RegistrationNamespace);
+            
+            // Default to enabled if no value set
+            if (string.IsNullOrEmpty(value))
+            {
+                return Ok(new { enabled = true });
+            }
+            
+            // Try to parse as JSON boolean or check for string "true"/"false"
+            try
+            {
+                var enabled = JsonSerializer.Deserialize<bool>(value);
+                return Ok(new { enabled });
+            }
+            catch
+            {
+                // Fallback: check string value
+                var enabled = value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                              value.Equals("\"true\"", StringComparison.OrdinalIgnoreCase);
+                return Ok(new { enabled });
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback: check string value
-            var enabled = value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-                          value.Equals("\"true\"", StringComparison.OrdinalIgnoreCase);
-            return Ok(new { enabled });
+            _logger.LogError(ex, "[Palco] Error checking registration enabled status");
+            return Ok(new { enabled = true }); // Default to enabled on error
         }
     }
     
@@ -80,29 +88,46 @@ public class CacheController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public ActionResult SubmitRegistrationRequest([FromBody] RegistrationRequestPayload request)
     {
-        if (string.IsNullOrEmpty(request.Id) || !request.Id.StartsWith("request-"))
+        try
         {
-            return BadRequest(new { error = "Invalid request ID format" });
+            if (string.IsNullOrEmpty(request?.Id) || !request.Id.StartsWith("request-"))
+            {
+                return BadRequest(new { error = "Invalid request ID format" });
+            }
+            
+            // Store the registration request
+            _cache.Set(request.Id, request.Data, request.TtlSeconds, RegistrationNamespace);
+            
+            // Update the requests index
+            var indexJson = _cache.Get("requests-index", RegistrationNamespace);
+            var index = new List<string>();
+            
+            if (!string.IsNullOrEmpty(indexJson))
+            {
+                try
+                {
+                    index = JsonSerializer.Deserialize<List<string>>(indexJson) ?? new List<string>();
+                }
+                catch
+                {
+                    index = new List<string>();
+                }
+            }
+            
+            // Extract the ID without prefix for the index
+            var requestId = request.Id.Replace("request-", "");
+            if (!index.Contains(requestId))
+            {
+                index.Add(requestId);
+                _cache.Set("requests-index", JsonSerializer.Serialize(index), request.TtlSeconds, RegistrationNamespace);
+            }
+            
+            return Ok(new { success = true, requestId });
         }
-        
-        // Store the registration request
-        _cache.Set(request.Id, request.Data, request.TtlSeconds, RegistrationNamespace);
-        
-        // Update the requests index
-        var indexJson = _cache.Get("requests-index", RegistrationNamespace);
-        var index = string.IsNullOrEmpty(indexJson) 
-            ? new List<string>() 
-            : JsonSerializer.Deserialize<List<string>>(indexJson) ?? new List<string>();
-        
-        // Extract the ID without prefix for the index
-        var requestId = request.Id.Replace("request-", "");
-        if (!index.Contains(requestId))
+        catch (Exception ex)
         {
-            index.Add(requestId);
-            _cache.Set("requests-index", JsonSerializer.Serialize(index), request.TtlSeconds, RegistrationNamespace);
+            return BadRequest(new { error = ex.Message });
         }
-        
-        return Ok(new { success = true, requestId });
     }
 
     // ====================================================================
@@ -119,13 +144,21 @@ public class CacheController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public ActionResult<CacheEntry> Get([FromRoute] string key, [FromQuery] string ns = "")
     {
-        var value = _cache.Get(key, ns);
-        if (value == null)
+        try
         {
+            var value = _cache.Get(key, ns);
+            if (value == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(new CacheEntry { Key = key, Value = value, Namespace = ns });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Palco] Error getting cache key {Key} in namespace {Namespace}", key, ns);
             return NotFound();
         }
-
-        return Ok(new CacheEntry { Key = key, Value = value, Namespace = ns });
     }
 
     /// <summary>
@@ -139,8 +172,16 @@ public class CacheController : ControllerBase
         [FromBody] SetCacheRequest request,
         [FromQuery] string ns = "")
     {
-        _cache.Set(key, request.Value, request.TtlSeconds, ns);
-        return Ok(new { success = true });
+        try
+        {
+            _cache.Set(key, request.Value, request.TtlSeconds, ns);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Palco] Error setting cache key {Key} in namespace {Namespace}", key, ns);
+            return Ok(new { success = false, error = "Failed to set cache value" });
+        }
     }
 
     /// <summary>
@@ -150,8 +191,16 @@ public class CacheController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult Delete([FromRoute] string key, [FromQuery] string ns = "")
     {
-        var deleted = _cache.Delete(key, ns);
-        return Ok(new { success = true, deleted });
+        try
+        {
+            var deleted = _cache.Delete(key, ns);
+            return Ok(new { success = true, deleted });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Palco] Error deleting cache key {Key} in namespace {Namespace}", key, ns);
+            return Ok(new { success = false, deleted = false });
+        }
     }
 
     /// <summary>
@@ -164,8 +213,16 @@ public class CacheController : ControllerBase
         [FromBody] BulkGetRequest request,
         [FromQuery] string ns = "")
     {
-        var results = _cache.GetBulk(request.Keys, ns);
-        return Ok(results);
+        try
+        {
+            var results = _cache.GetBulk(request.Keys, ns);
+            return Ok(results);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Palco] Error getting bulk cache in namespace {Namespace}", ns);
+            return Ok(new Dictionary<string, string>());
+        }
     }
 
     /// <summary>
@@ -175,8 +232,16 @@ public class CacheController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult DeleteNamespace([FromRoute] string ns)
     {
-        var deleted = _cache.DeleteNamespace(ns);
-        return Ok(new { success = true, deleted });
+        try
+        {
+            var deleted = _cache.DeleteNamespace(ns);
+            return Ok(new { success = true, deleted });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Palco] Error deleting namespace {Namespace}", ns);
+            return Ok(new { success = false, deleted = 0 });
+        }
     }
 
     /// <summary>
@@ -186,8 +251,16 @@ public class CacheController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult CleanExpired()
     {
-        var deleted = _cache.CleanExpired();
-        return Ok(new { success = true, deleted });
+        try
+        {
+            var deleted = _cache.CleanExpired();
+            return Ok(new { success = true, deleted });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Palco] Error cleaning expired cache entries");
+            return Ok(new { success = false, deleted = 0 });
+        }
     }
 
     /// <summary>
@@ -197,14 +270,28 @@ public class CacheController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult<CacheStats> GetStats()
     {
-        var (total, expired, size) = _cache.GetStats();
-        return Ok(new CacheStats
+        try
         {
-            TotalEntries = total,
-            ExpiredEntries = expired,
-            DatabaseSizeBytes = size,
-            DatabaseSizeMB = Math.Round(size / 1024.0 / 1024.0, 2)
-        });
+            var (total, expired, size) = _cache.GetStats();
+            return Ok(new CacheStats
+            {
+                TotalEntries = total,
+                ExpiredEntries = expired,
+                DatabaseSizeBytes = size,
+                DatabaseSizeMB = Math.Round(size / 1024.0 / 1024.0, 2)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Palco] Error getting cache stats");
+            return Ok(new CacheStats
+            {
+                TotalEntries = 0,
+                ExpiredEntries = 0,
+                DatabaseSizeBytes = 0,
+                DatabaseSizeMB = 0
+            });
+        }
     }
 }
 

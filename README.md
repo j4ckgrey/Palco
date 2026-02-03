@@ -1,10 +1,30 @@
 # Palco
 
-A minimal caching plugin for Anfiteatro. Simple, clean, no bloat.
+A minimal caching plugin for Jellyfin, built for [Anfiteatro](https://github.com/j4ckgrey/Anfiteatro). Simple key-value storage with TTL support.
+
+## Installation
+
+### Option 1: Plugin Repository (Recommended)
+
+1. Open Jellyfin Dashboard → **Plugins** → **Repositories**
+2. Click **Add** and enter:
+   - **Name**: `Palco`
+   - **URL**: `https://raw.githubusercontent.com/j4ckgrey/Palco/main/manifest.json`
+3. Go to **Catalog** tab, find **Palco** under General
+4. Click **Install** and restart Jellyfin
+
+### Option 2: Manual Installation
+
+1. Download `palco_0.1.0.0.zip` from the [latest release](https://github.com/j4ckgrey/Palco/releases/latest)
+2. Extract to your Jellyfin plugins folder:
+   - **Linux**: `/var/lib/jellyfin/plugins/Palco/`
+   - **Docker**: `/config/plugins/Palco/`
+   - **Windows**: `C:\ProgramData\Jellyfin\Server\plugins\Palco\`
+3. Restart Jellyfin
 
 ## What it does
 
-Palco provides a simple key-value cache API that Anfiteatro can use to store any data on the Jellyfin server:
+Palco provides a simple key-value cache API that Anfiteatro uses to store data on the Jellyfin server:
 - Reviews from TMDB/Trakt/IMDB
 - API responses that are expensive to fetch
 - Any JSON data you want to persist

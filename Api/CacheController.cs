@@ -30,11 +30,31 @@ public class CacheController : ControllerBase
     /// <summary>
     /// Gets the CacheService from the Plugin singleton.
     /// </summary>
-    private CacheService Cache => Plugin.Instance?.CacheService ?? throw new InvalidOperationException("Palco plugin not initialized");
+    private CacheService? Cache
+    {
+        get
+        {
+            try
+            {
+                if (Plugin.Instance == null)
+                {
+                    _logger.LogError("[Palco] Plugin.Instance is null!");
+                    return null;
+                }
+                return Plugin.Instance.CacheService;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Palco] Failed to get CacheService from Plugin.Instance");
+                return null;
+            }
+        }
+    }
 
     public CacheController(ILogger<CacheController> logger)
     {
         _logger = logger;
+        _logger.LogInformation("[Palco] CacheController instantiated");
     }
 
     // ====================================================================
@@ -51,6 +71,11 @@ public class CacheController : ControllerBase
     {
         try
         {
+            if (Cache == null)
+            {
+                _logger.LogWarning("[Palco] Cache not available, defaulting registration to enabled");
+                return Ok(new { enabled = true });
+            }
             var value = Cache.Get("registration-enabled", RegistrationNamespace);
             
             // Default to enabled if no value set
@@ -93,9 +118,16 @@ public class CacheController : ControllerBase
     {
         try
         {
+            if (Cache == null)
+            {
+                _logger.LogError("[Palco] Cache not available for registration request");
+                return StatusCode(503, new { error = "Cache service unavailable" });
+            }
+            
             if (string.IsNullOrEmpty(request?.Id) || !request.Id.StartsWith("request-"))
             {
-                return BadRequest(new { error = "Invalid request ID format" });
+                _logger.LogWarning("[Palco] Invalid request ID: {Id}", request?.Id ?? "null");
+                return BadRequest(new { error = "Invalid request ID format", receivedId = request?.Id });
             }
             
             // Store the registration request
@@ -145,10 +177,17 @@ public class CacheController : ControllerBase
     [HttpGet("Cache/{key}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<CacheEntry> Get([FromRoute] string key, [FromQuery] string ns = "")
     {
         try
         {
+            if (Cache == null)
+            {
+                _logger.LogError("[Palco] Cache not available for Get request: key={Key}, ns={Namespace}", key, ns);
+                return StatusCode(503, new { error = "Cache service unavailable" });
+            }
+            
             var value = Cache.Get(key, ns);
             if (value == null)
             {
@@ -170,6 +209,7 @@ public class CacheController : ControllerBase
     [HttpPost("Cache/{key}")]
     [Consumes(MediaTypeNames.Application.Json)]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult Set(
         [FromRoute] string key,
         [FromBody] SetCacheRequest request,
@@ -177,6 +217,12 @@ public class CacheController : ControllerBase
     {
         try
         {
+            if (Cache == null)
+            {
+                _logger.LogError("[Palco] Cache not available for Set request");
+                return StatusCode(503, new { success = false, error = "Cache service unavailable" });
+            }
+            
             Cache.Set(key, request.Value, request.TtlSeconds, ns);
             return Ok(new { success = true });
         }
@@ -192,10 +238,17 @@ public class CacheController : ControllerBase
     /// </summary>
     [HttpDelete("Cache/{key}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult Delete([FromRoute] string key, [FromQuery] string ns = "")
     {
         try
         {
+            if (Cache == null)
+            {
+                _logger.LogError("[Palco] Cache not available for Delete request");
+                return StatusCode(503, new { success = false, deleted = false, error = "Cache service unavailable" });
+            }
+            
             var deleted = Cache.Delete(key, ns);
             return Ok(new { success = true, deleted });
         }
@@ -212,12 +265,19 @@ public class CacheController : ControllerBase
     [HttpPost("Cache/Bulk")]
     [Consumes(MediaTypeNames.Application.Json)]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<Dictionary<string, string>> GetBulk(
         [FromBody] BulkGetRequest request,
         [FromQuery] string ns = "")
     {
         try
         {
+            if (Cache == null)
+            {
+                _logger.LogError("[Palco] Cache not available for Bulk request");
+                return StatusCode(503, new Dictionary<string, string>());
+            }
+            
             var results = Cache.GetBulk(request.Keys, ns);
             return Ok(results);
         }
@@ -233,10 +293,17 @@ public class CacheController : ControllerBase
     /// </summary>
     [HttpDelete("Cache/Namespace/{ns}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult DeleteNamespace([FromRoute] string ns)
     {
         try
         {
+            if (Cache == null)
+            {
+                _logger.LogError("[Palco] Cache not available for DeleteNamespace request");
+                return StatusCode(503, new { success = false, deleted = 0, error = "Cache service unavailable" });
+            }
+            
             var deleted = Cache.DeleteNamespace(ns);
             return Ok(new { success = true, deleted });
         }
@@ -252,10 +319,17 @@ public class CacheController : ControllerBase
     /// </summary>
     [HttpPost("Cache/Clean")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult CleanExpired()
     {
         try
         {
+            if (Cache == null)
+            {
+                _logger.LogError("[Palco] Cache not available for CleanExpired request");
+                return StatusCode(503, new { success = false, deleted = 0, error = "Cache service unavailable" });
+            }
+            
             var deleted = Cache.CleanExpired();
             return Ok(new { success = true, deleted });
         }
@@ -271,10 +345,23 @@ public class CacheController : ControllerBase
     /// </summary>
     [HttpGet("Cache/Stats")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<CacheStats> GetStats()
     {
         try
         {
+            if (Cache == null)
+            {
+                _logger.LogError("[Palco] Cache not available for Stats request");
+                return StatusCode(503, new CacheStats
+                {
+                    TotalEntries = -1,
+                    ExpiredEntries = -1,
+                    DatabaseSizeBytes = 0,
+                    DatabaseSizeMB = 0
+                });
+            }
+            
             var (total, expired, size) = Cache.GetStats();
             return Ok(new CacheStats
             {

@@ -9,6 +9,11 @@
             Palco Cache API - Simple key-value storage for Anfiteatro.
             </summary>
         </member>
+        <member name="P:Palco.Api.CacheController.Cache">
+            <summary>
+            Gets the CacheService from the Plugin singleton.
+            </summary>
+        </member>
         <member name="M:Palco.Api.CacheController.GetRegistrationEnabled">
             <summary>
             Check if registration is enabled (public endpoint).
@@ -87,6 +92,11 @@
             SQLite-backed cache service. Simple key-value storage with optional TTL.
             </summary>
         </member>
+        <member name="M:Palco.CacheService.EnsureInitialized">
+            <summary>
+            Ensure the database is initialized. Uses lazy initialization for resilience.
+            </summary>
+        </member>
         <member name="M:Palco.CacheService.Get(System.String,System.String)">
             <summary>
             Get a cached value by key.
@@ -130,6 +140,17 @@
             <summary>
             Palco - A minimal caching plugin for Anfiteatro.
             Provides simple key-value storage for client-side caching needs.
+            </summary>
+        </member>
+        <member name="P:Palco.Plugin.CacheService">
+            <summary>
+            Gets the CacheService singleton instance.
+            Uses lazy initialization to avoid startup issues.
+            </summary>
+        </member>
+        <member name="M:Palco.Plugin.DisposeCache">
+            <summary>
+            Clean up resources when plugin is unloaded.
             </summary>
         </member>
         <member name="T:Palco.PluginConfiguration">

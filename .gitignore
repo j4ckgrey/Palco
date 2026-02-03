@@ -6,3 +6,7 @@ obj/
 .vs/
 *.nupkg
 *.zip
+runtimes/
+.DS_Store
+TestResults/
+

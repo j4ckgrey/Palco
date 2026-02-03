@@ -6,33 +6,25 @@
     <members>
         <member name="T:Palco.Api.CacheController">
             <summary>
-            Palco Cache API - Simple key-value storage for Anfiteatro.
-            </summary>
-        </member>
-        <member name="P:Palco.Api.CacheController.Cache">
-            <summary>
-            Gets the CacheService from the Plugin singleton.
+            Palco API - Simple key-value cache for Anfiteatro.
             </summary>
         </member>
         <member name="M:Palco.Api.CacheController.GetRegistrationEnabled">
             <summary>
-            Check if registration is enabled (public endpoint).
+            Check if registration is enabled.
             </summary>
         </member>
-        <member name="M:Palco.Api.CacheController.SubmitRegistrationRequest(Palco.Api.RegistrationRequestPayload)">
+        <member name="M:Palco.Api.CacheController.SubmitRegistrationRequest(Palco.Api.RegistrationRequest)">
             <summary>
-            Submit a registration request (public endpoint).
-            Only allows writing to 'request-*' keys in the registration namespace.
+            Submit a registration request.
             </summary>
         </member>
         <member name="M:Palco.Api.CacheController.Get(System.String,System.String)">
             <summary>
-            Get a cached value by key.
+            Get a cached value.
             </summary>
-            <param name="key">Cache key</param>
-            <param name="ns">Optional namespace</param>
         </member>
-        <member name="M:Palco.Api.CacheController.Set(System.String,Palco.Api.SetCacheRequest,System.String)">
+        <member name="M:Palco.Api.CacheController.Set(System.String,Palco.Api.SetRequest,System.String)">
             <summary>
             Set a cached value.
             </summary>
@@ -42,130 +34,29 @@
             Delete a cached value.
             </summary>
         </member>
-        <member name="M:Palco.Api.CacheController.GetBulk(Palco.Api.BulkGetRequest,System.String)">
+        <member name="M:Palco.Api.CacheController.GetBulk(Palco.Api.BulkRequest,System.String)">
             <summary>
             Get multiple cached values.
             </summary>
         </member>
-        <member name="M:Palco.Api.CacheController.DeleteNamespace(System.String)">
-            <summary>
-            Delete all entries in a namespace.
-            </summary>
-        </member>
-        <member name="M:Palco.Api.CacheController.CleanExpired">
-            <summary>
-            Clean expired cache entries.
-            </summary>
-        </member>
         <member name="M:Palco.Api.CacheController.GetStats">
             <summary>
-            Get cache statistics.
+            Get cache stats.
             </summary>
         </member>
-        <member name="P:Palco.Api.SetCacheRequest.Value">
+        <member name="M:Palco.Api.CacheController.SendEmail(Palco.Api.EmailRequest)">
             <summary>
-            JSON value to cache (stored as-is).
-            </summary>
-        </member>
-        <member name="P:Palco.Api.SetCacheRequest.TtlSeconds">
-            <summary>
-            Time to live in seconds. 0 = never expire.
-            </summary>
-        </member>
-        <member name="P:Palco.Api.RegistrationRequestPayload.Id">
-            <summary>
-            Request ID (must start with 'request-').
-            </summary>
-        </member>
-        <member name="P:Palco.Api.RegistrationRequestPayload.Data">
-            <summary>
-            JSON data for the registration request.
-            </summary>
-        </member>
-        <member name="P:Palco.Api.RegistrationRequestPayload.TtlSeconds">
-            <summary>
-            Time to live in seconds.
+            Send an email (uses SMTP config from cache).
             </summary>
         </member>
         <member name="T:Palco.CacheService">
             <summary>
-            SQLite-backed cache service. Simple key-value storage with optional TTL.
-            </summary>
-        </member>
-        <member name="M:Palco.CacheService.EnsureInitialized">
-            <summary>
-            Ensure the database is initialized. Uses lazy initialization for resilience.
-            </summary>
-        </member>
-        <member name="M:Palco.CacheService.Get(System.String,System.String)">
-            <summary>
-            Get a cached value by key.
-            </summary>
-        </member>
-        <member name="M:Palco.CacheService.Set(System.String,System.String,System.Int32,System.String)">
-            <summary>
-            Set a cached value.
-            </summary>
-            <param name="key">Cache key</param>
-            <param name="value">JSON value to store</param>
-            <param name="ttlSeconds">Time to live in seconds. 0 = never expire.</param>
-            <param name="ns">Optional namespace for grouping</param>
-        </member>
-        <member name="M:Palco.CacheService.Delete(System.String,System.String)">
-            <summary>
-            Delete a cached value.
-            </summary>
-        </member>
-        <member name="M:Palco.CacheService.GetBulk(System.Collections.Generic.IEnumerable{System.String},System.String)">
-            <summary>
-            Get multiple cached values by keys.
-            </summary>
-        </member>
-        <member name="M:Palco.CacheService.DeleteNamespace(System.String)">
-            <summary>
-            Delete all entries in a namespace.
-            </summary>
-        </member>
-        <member name="M:Palco.CacheService.CleanExpired">
-            <summary>
-            Clean up expired entries.
-            </summary>
-        </member>
-        <member name="M:Palco.CacheService.GetStats">
-            <summary>
-            Get cache statistics.
+            SQLite-backed cache service.
             </summary>
         </member>
         <member name="T:Palco.Plugin">
             <summary>
-            Palco - A minimal caching plugin for Anfiteatro.
-            Provides simple key-value storage for client-side caching needs.
-            </summary>
-        </member>
-        <member name="P:Palco.Plugin.CacheService">
-            <summary>
-            Gets the CacheService singleton instance.
-            Uses lazy initialization to avoid startup issues.
-            </summary>
-        </member>
-        <member name="M:Palco.Plugin.DisposeCache">
-            <summary>
-            Clean up resources when plugin is unloaded.
-            </summary>
-        </member>
-        <member name="T:Palco.PluginConfiguration">
-            <summary>
-            Plugin configuration (minimal - just for future extensibility).
-            </summary>
-        </member>
-        <member name="P:Palco.PluginConfiguration.DefaultExpiryHours">
-            <summary>
-            Default cache expiry in hours. 0 = never expire.
-            </summary>
-        </member>
-        <member name="P:Palco.PluginConfiguration.MaxCacheSizeMB">
-            <summary>
-            Maximum cache size in MB. 0 = unlimited.
+            Palco - Minimal cache plugin for Anfiteatro.
             </summary>
         </member>
         <member name="T:Palco.ServiceRegistrator">

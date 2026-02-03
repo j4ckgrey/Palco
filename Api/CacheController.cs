@@ -79,29 +79,44 @@ public class CacheController : ControllerBase
             if (!string.IsNullOrEmpty(smtpJson))
             {
                 var smtp = JsonSerializer.Deserialize<SmtpConfig>(smtpJson);
-                if (smtp != null && !string.IsNullOrEmpty(smtp.Host) && !string.IsNullOrEmpty(smtp.AdminEmail))
+                if (smtp != null && !string.IsNullOrEmpty(smtp.Host))
                 {
                     // Parse user info from request data
                     var userData = JsonSerializer.Deserialize<JsonElement>(request.Data);
                     var userName = userData.TryGetProperty("name", out var n) ? n.GetString() : "Unknown";
                     var userEmail = userData.TryGetProperty("email", out var e) ? e.GetString() : "Unknown";
+                    var userMessage = userData.TryGetProperty("userMessage", out var m) ? m.GetString() : "";
 
-                    using var client = new SmtpClient(smtp.Host, smtp.Port)
+                    var adminEmail = !string.IsNullOrEmpty(smtp.AdminEmail) ? smtp.AdminEmail : smtp.Username;
+                    
+                    if (!string.IsNullOrEmpty(adminEmail))
                     {
-                        EnableSsl = true,
-                        Credentials = new NetworkCredential(smtp.Username, smtp.Password)
-                    };
+                        using var client = new SmtpClient(smtp.Host, smtp.Port)
+                        {
+                            EnableSsl = true,
+                            Credentials = new NetworkCredential(smtp.Username, smtp.Password)
+                        };
 
-                    var mail = new MailMessage
-                    {
-                        From = new MailAddress(smtp.FromAddress ?? smtp.Username, smtp.FromName ?? "Anfiteatro"),
-                        Subject = $"New Registration Request: {userName}",
-                        Body = $"A new user has requested access to your server.\n\nUsername: {userName}\nEmail: {userEmail}\n\nPlease review this request in the Anfiteatro admin panel."
-                    };
-                    mail.To.Add(smtp.AdminEmail);
+                        var body = $"A new user has requested access to your server.\n\nUsername: {userName}\nEmail: {userEmail}";
+                        
+                        if (!string.IsNullOrEmpty(userMessage))
+                        {
+                            body += $"\n\nMessage from User:\n{userMessage}";
+                        }
 
-                    await client.SendMailAsync(mail);
-                    _logger.LogInformation("[Palco] Admin notification sent for registration: {Id}", requestId);
+                        body += "\n\nPlease review this request in the Anfiteatro admin panel.";
+
+                        var mail = new MailMessage
+                        {
+                            From = new MailAddress(smtp.FromAddress ?? smtp.Username, smtp.FromName ?? "Anfiteatro"),
+                            Subject = $"New Registration Request: {userName}",
+                            Body = body
+                        };
+                        mail.To.Add(adminEmail);
+
+                        await client.SendMailAsync(mail);
+                        _logger.LogInformation("[Palco] Admin notification sent to {AdminEmail} for registration: {Id}", adminEmail, requestId);
+                    }
                 }
             }
         }

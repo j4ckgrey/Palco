@@ -12,8 +12,8 @@
         "changelog": "Clean release - minimal cache with email endpoint",
         "targetAbi": "10.11.0.0",
         "sourceUrl": "https://github.com/j4ckgrey/Palco/releases/download/v0.1.0.0/palco_0.1.0.0.zip",
-        "checksum": "2aa98ada9ddf95fb32e2666e5d89032c",
-        "timestamp": "2026-02-03T17:00:00Z"
+        "checksum": "966695c6ae593c579eb5c6493c272c7c",
+        "timestamp": "2026-02-03T17:10:00Z"
       }
     ]
   }

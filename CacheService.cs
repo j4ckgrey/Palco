@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace Palco;
 
 /// <summary>
-/// SQLite-backed cache service. Simple key-value storage with optional TTL.
+/// SQLite-backed cache service.
 /// </summary>
 public class CacheService : IDisposable
 {
@@ -13,63 +13,18 @@ public class CacheService : IDisposable
     private readonly ILogger<CacheService> _logger;
     private SqliteConnection? _connection;
     private readonly object _lock = new();
-    private bool _initialized;
-    private bool _initializationFailed;
 
     public CacheService(IApplicationPaths appPaths, ILogger<CacheService> logger)
     {
         _logger = logger;
-        try
-        {
-            var pluginDataPath = Path.Combine(appPaths.PluginsPath, "Palco");
-            Directory.CreateDirectory(pluginDataPath);
-            _dbPath = Path.Combine(pluginDataPath, "cache.db");
-            _logger.LogInformation("[Palco] CacheService created with db path: {Path}", _dbPath);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[Palco] Failed to setup Palco data directory");
-            _dbPath = string.Empty;
-            _initializationFailed = true;
-        }
+        var pluginDataPath = Path.Combine(appPaths.PluginsPath, "Palco");
+        Directory.CreateDirectory(pluginDataPath);
+        _dbPath = Path.Combine(pluginDataPath, "cache.db");
+        Initialize();
     }
 
-    /// <summary>
-    /// Ensure the database is initialized. Uses lazy initialization for resilience.
-    /// </summary>
-    private bool EnsureInitialized()
+    private void Initialize()
     {
-        if (_initializationFailed) return false;
-        if (_initialized && _connection != null) return true;
-        
-        lock (_lock)
-        {
-            if (_initialized && _connection != null) return true;
-            if (_initializationFailed) return false;
-            
-            try
-            {
-                InitializeDatabaseInternal();
-                _initialized = true;
-                return _connection != null;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[Palco] Failed to initialize database");
-                _initializationFailed = true;
-                return false;
-            }
-        }
-    }
-
-    private void InitializeDatabaseInternal()
-    {
-        if (string.IsNullOrEmpty(_dbPath))
-        {
-            _logger.LogWarning("[Palco] Database path is empty, skipping initialization");
-            return;
-        }
-        
         _connection = new SqliteConnection($"Data Source={_dbPath}");
         _connection.Open();
 
@@ -83,64 +38,40 @@ public class CacheService : IDisposable
                 namespace TEXT DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS idx_namespace ON cache(namespace);
-            CREATE INDEX IF NOT EXISTS idx_expires ON cache(expires_at);
         ";
         cmd.ExecuteNonQuery();
-
-        _logger.LogInformation("[Palco] Cache database initialized at {Path}", _dbPath);
+        _logger.LogInformation("[Palco] Cache initialized at {Path}", _dbPath);
     }
 
-    /// <summary>
-    /// Get a cached value by key.
-    /// </summary>
     public string? Get(string key, string ns = "")
     {
-        if (!EnsureInitialized()) return null;
-        
         lock (_lock)
         {
             if (_connection == null) return null;
 
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = @"
-                SELECT value, expires_at FROM cache 
-                WHERE key = @key AND namespace = @ns
-            ";
+            cmd.CommandText = "SELECT value, expires_at FROM cache WHERE key = @key AND namespace = @ns";
             cmd.Parameters.AddWithValue("@key", key);
             cmd.Parameters.AddWithValue("@ns", ns);
 
             using var reader = cmd.ExecuteReader();
-            if (reader.Read())
+            if (!reader.Read()) return null;
+
+            var expiresAt = reader.IsDBNull(1) ? (long?)null : reader.GetInt64(1);
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            if (expiresAt.HasValue && expiresAt.Value < now)
             {
-                var expiresAt = reader.IsDBNull(1) ? (long?)null : reader.GetInt64(1);
-                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-                // Check expiry
-                if (expiresAt.HasValue && expiresAt.Value < now)
-                {
-                    // Expired - delete and return null
-                    Delete(key, ns);
-                    return null;
-                }
-
-                return reader.GetString(0);
+                Delete(key, ns);
+                return null;
             }
 
-            return null;
+            return reader.GetString(0);
         }
     }
 
-    /// <summary>
-    /// Set a cached value.
-    /// </summary>
-    /// <param name="key">Cache key</param>
-    /// <param name="value">JSON value to store</param>
-    /// <param name="ttlSeconds">Time to live in seconds. 0 = never expire.</param>
-    /// <param name="ns">Optional namespace for grouping</param>
     public void Set(string key, string value, int ttlSeconds = 0, string ns = "")
     {
-        if (!EnsureInitialized()) return;
-        
         lock (_lock)
         {
             if (_connection == null) return;
@@ -162,13 +93,8 @@ public class CacheService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Delete a cached value.
-    /// </summary>
     public bool Delete(string key, string ns = "")
     {
-        if (!EnsureInitialized()) return false;
-        
         lock (_lock)
         {
             if (_connection == null) return false;
@@ -181,84 +107,19 @@ public class CacheService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Get multiple cached values by keys.
-    /// </summary>
     public Dictionary<string, string> GetBulk(IEnumerable<string> keys, string ns = "")
     {
         var result = new Dictionary<string, string>();
-        if (!EnsureInitialized()) return result;
-        
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-        lock (_lock)
+        foreach (var key in keys)
         {
-            if (_connection == null) return result;
-
-            foreach (var key in keys)
-            {
-                var value = Get(key, ns);
-                if (value != null)
-                {
-                    result[key] = value;
-                }
-            }
+            var value = Get(key, ns);
+            if (value != null) result[key] = value;
         }
-
         return result;
     }
 
-    /// <summary>
-    /// Delete all entries in a namespace.
-    /// </summary>
-    public int DeleteNamespace(string ns)
+    public (int total, int expired, long size) GetStats()
     {
-        if (!EnsureInitialized()) return 0;
-        
-        lock (_lock)
-        {
-            if (_connection == null) return 0;
-
-            using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "DELETE FROM cache WHERE namespace = @ns";
-            cmd.Parameters.AddWithValue("@ns", ns);
-            return cmd.ExecuteNonQuery();
-        }
-    }
-
-    /// <summary>
-    /// Clean up expired entries.
-    /// </summary>
-    public int CleanExpired()
-    {
-        if (!EnsureInitialized()) return 0;
-        
-        lock (_lock)
-        {
-            if (_connection == null) return 0;
-
-            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "DELETE FROM cache WHERE expires_at IS NOT NULL AND expires_at < @now";
-            cmd.Parameters.AddWithValue("@now", now);
-            var deleted = cmd.ExecuteNonQuery();
-
-            if (deleted > 0)
-            {
-                _logger.LogInformation("[Palco] Cleaned {Count} expired cache entries", deleted);
-            }
-
-            return deleted;
-        }
-    }
-
-    /// <summary>
-    /// Get cache statistics.
-    /// </summary>
-    public (int totalEntries, int expiredEntries, long dbSizeBytes) GetStats()
-    {
-        if (!EnsureInitialized()) return (0, 0, 0);
-        
         lock (_lock)
         {
             if (_connection == null) return (0, 0, 0);
@@ -274,19 +135,14 @@ public class CacheService : IDisposable
             cmd2.Parameters.AddWithValue("@now", now);
             var expired = Convert.ToInt32(cmd2.ExecuteScalar());
 
-            var dbSize = File.Exists(_dbPath) ? new FileInfo(_dbPath).Length : 0;
-
-            return (total, expired, dbSize);
+            var size = File.Exists(_dbPath) ? new FileInfo(_dbPath).Length : 0;
+            return (total, expired, size);
         }
     }
 
     public void Dispose()
     {
-        lock (_lock)
-        {
-            _connection?.Close();
-            _connection?.Dispose();
-            _connection = null;
-        }
+        _connection?.Close();
+        _connection?.Dispose();
     }
 }

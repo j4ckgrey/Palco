@@ -2,59 +2,18 @@
   {
     "guid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "Palco",
-    "description": "Minimal caching plugin for Anfiteatro. Provides simple key-value storage.",
-    "overview": "Palco is a lightweight caching plugin that stores arbitrary JSON data by key. Use it for caching API responses, reviews, or any data that Anfiteatro needs to persist on the server.",
+    "description": "Minimal cache for Anfiteatro",
+    "overview": "Simple key-value cache with email sending support.",
     "owner": "j4ckgrey",
     "category": "General",
-    "imageUrl": "",
     "versions": [
       {
-        "version": "0.2.4.0",
-        "changelog": "Fixed DI service resolution issue. CacheService now accessed via Plugin singleton instead of relying on IPluginServiceRegistrator. Added lazy initialization for better resilience.",
-        "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/j4ckgrey/Palco/releases/download/v0.2.4.0/palco_0.2.4.0.zip",
-        "checksum": "eed739be388ede74e8aaa446067c4e28",
-        "timestamp": "2026-02-03T14:10:00Z"
-      },
-      {
-        "version": "0.2.3.0",
-        "changelog": "Fixed DI service resolution issue. CacheService now accessed via Plugin singleton instead of relying on IPluginServiceRegistrator. Added lazy initialization for better resilience.",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/j4ckgrey/Palco/releases/download/v0.2.3.0/palco_0.2.3.0.zip",
-        "checksum": "f8905bf80c45ac8de5299949717fddbc",
-        "timestamp": "2026-02-03T14:10:00Z"
-      },
-      {
-        "version": "0.2.2.0",
-        "changelog": "Fixed DI service registration - CacheService now properly resolved with IApplicationPaths and ILogger dependencies.",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/j4ckgrey/Palco/releases/download/v0.2.2.0/palco_0.2.2.0.zip",
-        "checksum": "b45be7b762b713d0fb72cf398221ce3d",
-        "timestamp": "2026-02-03T14:30:00Z"
-      },
-      {
-        "version": "0.2.1.0",
-        "changelog": "Improved error handling throughout all endpoints. All endpoints now have try-catch with proper logging and graceful fallbacks instead of 500 errors.",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/j4ckgrey/Palco/releases/download/v0.2.1.0/palco_0.2.1.0.zip",
-        "checksum": "62f6893256bd3809470ee49ad8157319",
-        "timestamp": "2026-02-03T14:00:00Z"
-      },
-      {
-        "version": "0.2.0.0",
-        "changelog": "Add public registration endpoints for Anfiteatro user registration system. Allows unauthenticated access to registration-enabled check and registration request submission.",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/j4ckgrey/Palco/releases/download/v0.2.0.0/palco_0.2.0.0.zip",
-        "checksum": "1396de108d6d3521ce484b67458727f9",
-        "timestamp": "2026-02-03T13:35:00Z"
-      },
-      {
         "version": "0.1.0.0",
-        "changelog": "Initial release - Simple SQLite-backed key-value cache with TTL support.",
+        "changelog": "Clean release - minimal cache with email endpoint",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/j4ckgrey/Palco/releases/download/v0.1.0.0/palco_0.1.0.0.zip",
-        "checksum": "27527742dbbd4d91d5a8d70d96c7ca7b",
-        "timestamp": "2026-02-03T12:00:00Z"
+        "checksum": "a80463807a2f1f58ae8d9b38615b0ca8",
+        "timestamp": "2026-02-03T15:00:00Z"
       }
     ]
   }

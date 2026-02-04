@@ -20,5 +20,12 @@ public class ServiceRegistrator : IPluginServiceRegistrator
             var logger = sp.GetRequiredService<ILogger<CacheService>>();
             return new CacheService(appPaths, logger);
         });
+
+        services.AddSingleton<CatalogsService>(sp =>
+        {
+            var appPaths = sp.GetRequiredService<IApplicationPaths>();
+            var logger = sp.GetRequiredService<ILogger<CatalogsService>>();
+            return new CatalogsService(appPaths, logger);
+        });
     }
 }

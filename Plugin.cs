@@ -15,8 +15,10 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     
     private readonly IApplicationPaths _appPaths;
     private CacheService? _cacheService;
+    private CatalogsService? _catalogsService;
 
     public CacheService CacheService => _cacheService ??= new CacheService(_appPaths, NullLogger<CacheService>.Instance);
+    public CatalogsService CatalogsService => _catalogsService ??= new CatalogsService(_appPaths, NullLogger<CatalogsService>.Instance);
 
     public Plugin(IApplicationPaths appPaths, IXmlSerializer xmlSerializer) : base(appPaths, xmlSerializer)
     {

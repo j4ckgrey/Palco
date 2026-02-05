@@ -10,10 +10,12 @@ namespace Palco.Api
     public class CatalogsController : ControllerBase
     {
         private readonly CatalogsService _service;
+        private readonly CatalogsImportService _importService;
 
-        public CatalogsController(CatalogsService service)
+        public CatalogsController(CatalogsService service, CatalogsImportService importService)
         {
             _service = service;
+            _importService = importService;
         }
 
         [HttpGet]
@@ -78,6 +80,41 @@ namespace Palco.Api
             _service.Save(config);
             return Ok(config);
         }
+
+        /// <summary>
+        /// Trigger bulk import of catalogs. Runs in background.
+        /// </summary>
+        [HttpPost("BulkImport")]
+        public ActionResult BulkImport([FromBody] BulkImportRequest request)
+        {
+            if (request.Catalogs == null || request.Catalogs.Count == 0)
+            {
+                return BadRequest("No catalogs specified");
+            }
+
+            // Fire and forget - returns immediately
+            _ = _importService.BulkImportAsync(request);
+            
+            return Accepted(new { message = $"Import started for {request.Catalogs.Count} catalog(s)" });
+        }
+
+        /// <summary>
+        /// Get item count in the collection linked to a catalog.
+        /// </summary>
+        [HttpGet("{id}/CollectionCount")]
+        public ActionResult<int> GetCollectionCount(string id)
+        {
+            var config = _service.Get(id);
+            if (config == null) return NotFound();
+
+            if (string.IsNullOrEmpty(config.CollectionId))
+            {
+                return Ok(0);
+            }
+
+            var count = _importService.GetCollectionItemCount(config.CollectionId);
+            return Ok(count);
+        }
     }
 
     public class StatusUpdate
@@ -88,3 +125,4 @@ namespace Palco.Api
         public DateTime? LastUpdated { get; set; }
     }
 }
+

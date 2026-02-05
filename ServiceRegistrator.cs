@@ -1,5 +1,8 @@
+using Gelato;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Collections;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -27,5 +30,16 @@ public class ServiceRegistrator : IPluginServiceRegistrator
             var logger = sp.GetRequiredService<ILogger<CatalogsService>>();
             return new CatalogsService(appPaths, logger);
         });
+
+        services.AddSingleton<CatalogsImportService>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<CatalogsImportService>>();
+            var catalogsService = sp.GetRequiredService<CatalogsService>();
+            var gelatoManager = sp.GetRequiredService<GelatoManager>();
+            var libraryManager = sp.GetRequiredService<ILibraryManager>();
+            var collectionManager = sp.GetRequiredService<ICollectionManager>();
+            return new CatalogsImportService(logger, catalogsService, gelatoManager, libraryManager, collectionManager);
+        });
     }
 }
+

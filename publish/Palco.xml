@@ -1,0 +1,159 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Palco</name>
+    </assembly>
+    <members>
+        <member name="T:Palco.Api.CacheController">
+            <summary>
+            Palco API - Simple key-value cache for Anfiteatro.
+            </summary>
+        </member>
+        <member name="M:Palco.Api.CacheController.GetRegistrationEnabled">
+            <summary>
+            Check if registration is enabled.
+            </summary>
+        </member>
+        <member name="M:Palco.Api.CacheController.SubmitRegistrationRequest(Palco.Api.RegistrationRequest)">
+            <summary>
+            Submit a registration request.
+            </summary>
+        </member>
+        <member name="M:Palco.Api.CacheController.Get(System.String,System.String)">
+            <summary>
+            Get a cached value.
+            </summary>
+        </member>
+        <member name="M:Palco.Api.CacheController.Set(System.String,Palco.Api.SetRequest,System.String)">
+            <summary>
+            Set a cached value.
+            </summary>
+        </member>
+        <member name="M:Palco.Api.CacheController.Delete(System.String,System.String)">
+            <summary>
+            Delete a cached value.
+            </summary>
+        </member>
+        <member name="M:Palco.Api.CacheController.GetBulk(Palco.Api.BulkRequest,System.String)">
+            <summary>
+            Get multiple cached values.
+            </summary>
+        </member>
+        <member name="M:Palco.Api.CacheController.GetStats">
+            <summary>
+            Get cache stats.
+            </summary>
+        </member>
+        <member name="M:Palco.Api.CacheController.SendEmail(Palco.Api.EmailRequest)">
+            <summary>
+            Send an email (uses SMTP config from cache).
+            </summary>
+        </member>
+        <member name="M:Palco.Api.CatalogsController.BulkImport(Palco.BulkImportRequest)">
+            <summary>
+            Trigger bulk import of catalogs. Runs in background.
+            </summary>
+        </member>
+        <member name="M:Palco.Api.CatalogsController.GetCollectionCount(System.String)">
+            <summary>
+            Get item count in the collection linked to a catalog.
+            </summary>
+        </member>
+        <member name="T:Palco.CacheService">
+            <summary>
+            SQLite-backed cache service.
+            </summary>
+        </member>
+        <member name="T:Palco.CatalogImportRequest">
+            <summary>
+            Request to import a single catalog.
+            </summary>
+        </member>
+        <member name="T:Palco.BulkImportRequest">
+            <summary>
+            Bulk import request containing multiple catalogs.
+            </summary>
+        </member>
+        <member name="T:Palco.CatalogsImportService">
+            <summary>
+            Service for handling background catalog imports.
+            </summary>
+        </member>
+        <member name="M:Palco.CatalogsImportService.BulkImportAsync(Palco.BulkImportRequest,System.Threading.CancellationToken)">
+            <summary>
+            Start bulk import of catalogs in the background.
+            </summary>
+        </member>
+        <member name="M:Palco.CatalogsImportService.GetCollectionItemCount(System.String)">
+            <summary>
+            Get item count in a collection.
+            </summary>
+        </member>
+        <member name="M:Palco.CatalogsImportService.CancelImport(System.String)">
+            <summary>
+            Cancel an active import.
+            </summary>
+        </member>
+        <member name="T:Palco.CatalogSyncTask">
+            <summary>
+            Scheduled task that syncs catalog collections with their source catalogs.
+            Removes items that no longer exist in the catalog and adds new ones.
+            </summary>
+        </member>
+        <member name="P:Palco.CatalogSyncTask.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:Palco.CatalogSyncTask.Key">
+            <inheritdoc />
+        </member>
+        <member name="P:Palco.CatalogSyncTask.Description">
+            <inheritdoc />
+        </member>
+        <member name="P:Palco.CatalogSyncTask.Category">
+            <inheritdoc />
+        </member>
+        <member name="P:Palco.CatalogSyncTask.IsHidden">
+            <inheritdoc />
+        </member>
+        <member name="P:Palco.CatalogSyncTask.IsEnabled">
+            <inheritdoc />
+        </member>
+        <member name="P:Palco.CatalogSyncTask.IsLogged">
+            <inheritdoc />
+        </member>
+        <member name="M:Palco.CatalogSyncTask.GetDefaultTriggers">
+            <inheritdoc />
+        </member>
+        <member name="M:Palco.CatalogSyncTask.ExecuteAsync(System.IProgress{System.Double},System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:Palco.Plugin">
+            <summary>
+            Palco - Minimal cache plugin for Anfiteatro.
+            </summary>
+        </member>
+        <member name="T:Palco.PluginConfiguration">
+            <summary>
+            Palco plugin configuration.
+            </summary>
+        </member>
+        <member name="P:Palco.PluginConfiguration.CatalogSyncIntervalHours">
+            <summary>
+            Gets or sets the catalog sync interval in hours. Default is 6 hours.
+            </summary>
+        </member>
+        <member name="P:Palco.PluginConfiguration.CatalogSyncEnabled">
+            <summary>
+            Gets or sets whether catalog sync is enabled.
+            </summary>
+        </member>
+        <member name="T:Palco.ServiceRegistrator">
+            <summary>
+            Registers Palco services with the DI container.
+            </summary>
+        </member>
+        <member name="M:Palco.ServiceRegistrator.RegisterServices(Microsoft.Extensions.DependencyInjection.IServiceCollection,MediaBrowser.Controller.IServerApplicationHost)">
+            <inheritdoc />
+        </member>
+    </members>
+</doc>

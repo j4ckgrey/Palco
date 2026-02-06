@@ -1,0 +1,12 @@
+bin/
+obj/
+*.user
+*.suo
+*.cache
+.vs/
+*.nupkg
+*.zip
+runtimes/
+.DS_Store
+TestResults/
+
